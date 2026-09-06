@@ -4,6 +4,7 @@ import base64
 import urllib.parse
 import time
 import httpx
+import asyncio
 from services.graph_service import ktech_bot_graph
 from dtos.sms_dto import OutboundSmsDTO
 
@@ -11,7 +12,6 @@ class SmsService:
     def __init__(self):
         self.secret = "ktech_secret_2026"
         self.phone_api_url = "http://100.86.10.117:5000/sms/send"
-        # מילון זיכרון למניעת כפילויות (Idempotency Cache)
         self.processed_messages = {}
 
     def verify_signature(self, timestamp: str, signature: str) -> bool:
@@ -57,43 +57,40 @@ class SmsService:
                     headers=headers,
                     timeout=10.0
                 )
-                
                 if response.status_code == 200 and "success" in response.text.lower():
                     print(f"✅ Outbound SMS sent successfully to {local_phone}")
                 else:
-                    print(f"❌ Failed to send SMS. Status: {response.status_code}, Response: {response.text}")
+                    print(f"❌ Failed to send SMS: {response.status_code}")
         except Exception as e:
             print(f"❌ Error communicating with Phone API: {e}")
 
-    async def process_incoming_sms(self, sender_phone: str, message_body: str):
+    async def _process_logic_in_background(self, sender_phone: str, message_body: str):
+        """פונקציה זו רצה ברקע לחלוטין ולא תוקעת את השרת"""
         clean_msg = message_body.split('SIM1_')[0].strip()
         
-        # --- תחילת מנגנון מניעת כפילויות ---
         current_time = time.time()
         last_processed = self.processed_messages.get(sender_phone)
         
-        # אם הלקוח שלח את אותה הודעה בדיוק ב-60 השניות האחרונות - לחסום
+        # הגדלנו את חלון החסימה ל-120 שניות לביטחון
         if last_processed and last_processed['msg'] == clean_msg:
             time_diff = current_time - last_processed['time']
-            if time_diff < 60:
+            if time_diff < 120:
                 print(f"♻️ DUPLICATE BLOCKED: Ignoring repeated SMS from {sender_phone} within {int(time_diff)}s.")
-                return # עוצר את הפונקציה ולא ממשיך ל-AI
+                return
                 
-        # עדכון הזיכרון עם ההודעה החדשה
         self.processed_messages[sender_phone] = {"msg": clean_msg, "time": current_time}
-        # --- סוף מנגנון מניעת כפילויות ---
-
-        print(f"🧠 Routing SMS from {sender_phone} to AI Graph. Clean msg: '{clean_msg}'")
+        print(f"🧠 Routing SMS from {sender_phone} to AI Graph...")
         
         try:
             config = {"configurable": {"thread_id": f"sms_{sender_phone}"}}
-            
             ai_input = f"{clean_msg}\n\n[SYSTEM NOTE: The user is messaging via SMS. Your response MUST be extremely short, maximum 1 or 2 sentences, under 100 characters. No markdown, no long lists.]"
             
-            graph_response = ktech_bot_graph.invoke({
-                "current_input": ai_input, 
-                "phone_number": sender_phone  
-            }, config)
+            # עטיפת הפעולה הכבדה כדי שהיא לא תקפיא את שאר הלקוחות!
+            graph_response = await asyncio.to_thread(
+                ktech_bot_graph.invoke,
+                {"current_input": ai_input, "phone_number": sender_phone}, 
+                config
+            )
             
             bot_reply = graph_response["messages"][-1]["content"]
             print(f"🤖 AI SMS REPLY READY:\n{bot_reply}")
@@ -101,5 +98,9 @@ class SmsService:
             await self.send_sms_reply(sender_phone, bot_reply)
         except Exception as e:
             print(f"❌ Error processing AI logic for SMS: {e}")
+
+    async def process_incoming_sms(self, sender_phone: str, message_body: str):
+        """הפונקציה משחררת את הבקשה מיד וזורקת את העבודה לרקע"""
+        asyncio.create_task(self._process_logic_in_background(sender_phone, message_body))
 
 sms_manager = SmsService()
