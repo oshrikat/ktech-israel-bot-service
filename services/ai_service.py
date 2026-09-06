@@ -3,7 +3,7 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-# --- הייבוא החדש של הכלים שיצרנו ---
+# --- הייבוא   של הכלים שיצרנו ---
 from tools.business_hours_tool import check_business_hours
 
 from tools.escalation_tool import escalate_to_human
@@ -81,7 +81,7 @@ def generate_ai_response(conversation_history: list, customer_phone: str = None)
             dynamic_instruction += f"\n\n[הערת מערכת נסתרת: מספר הטלפון של הלקוח בשיחה זו הוא {customer_phone}.]"
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash-lite",
             contents=formatted_contents,
             config=types.GenerateContentConfig(
                 system_instruction=dynamic_instruction, # משתמשים בהוראה הדינמית שיצרנו
@@ -106,7 +106,7 @@ def summarize_conversation(messages_to_summarize: list) -> str:
         prompt = f"סכם את 10 ההודעות הבאות לפי ההנחיות:\n\n{text_dialogue}"
 
         response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
+            model="gemini-2.5-flash-lite",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SUMMARY_INSTRUCTION,

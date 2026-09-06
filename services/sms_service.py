@@ -11,6 +11,8 @@ class SmsService:
     def __init__(self):
         self.secret = "ktech_secret_2026"
         self.phone_api_url = "http://100.86.10.117:5000/sms/send"
+        # מילון זיכרון למניעת כפילויות (Idempotency Cache)
+        self.processed_messages = {}
 
     def verify_signature(self, timestamp: str, signature: str) -> bool:
         try:
@@ -25,21 +27,18 @@ class SmsService:
             return False
 
     async def send_sms_reply(self, target_phone: str, message: str):
-        # 1. סידור מספר הטלפון לפורמט מקומי
         local_phone = target_phone
         if local_phone.startswith("+972"):
             local_phone = "0" + local_phone[4:]
         elif local_phone.startswith("972"):
             local_phone = "0" + local_phone[3:]
 
-        # 2. שימוש ב-DTO הארכיטקטוני שלנו למידע הפנימי
         sms_data = OutboundSmsDTO(
             sim_slot=1,
             phone_numbers=local_phone,
             msg_content=message
         )
 
-        # 3. עטיפת ה-DTO בתבנית ה"זהב" שהרגע פיצחנו
         payload = {
             "data": sms_data.model_dump(),
             "timestamp": int(time.time() * 1000),
@@ -59,7 +58,6 @@ class SmsService:
                     timeout=10.0
                 )
                 
-                # האפליקציה מחזירה code: 200 כשהכל תקין
                 if response.status_code == 200 and "success" in response.text.lower():
                     print(f"✅ Outbound SMS sent successfully to {local_phone}")
                 else:
@@ -69,12 +67,27 @@ class SmsService:
 
     async def process_incoming_sms(self, sender_phone: str, message_body: str):
         clean_msg = message_body.split('SIM1_')[0].strip()
+        
+        # --- תחילת מנגנון מניעת כפילויות ---
+        current_time = time.time()
+        last_processed = self.processed_messages.get(sender_phone)
+        
+        # אם הלקוח שלח את אותה הודעה בדיוק ב-60 השניות האחרונות - לחסום
+        if last_processed and last_processed['msg'] == clean_msg:
+            time_diff = current_time - last_processed['time']
+            if time_diff < 60:
+                print(f"♻️ DUPLICATE BLOCKED: Ignoring repeated SMS from {sender_phone} within {int(time_diff)}s.")
+                return # עוצר את הפונקציה ולא ממשיך ל-AI
+                
+        # עדכון הזיכרון עם ההודעה החדשה
+        self.processed_messages[sender_phone] = {"msg": clean_msg, "time": current_time}
+        # --- סוף מנגנון מניעת כפילויות ---
+
         print(f"🧠 Routing SMS from {sender_phone} to AI Graph. Clean msg: '{clean_msg}'")
         
         try:
             config = {"configurable": {"thread_id": f"sms_{sender_phone}"}}
             
-            # הנחיה ל-AI לענות קצר וקולע ב-SMS
             ai_input = f"{clean_msg}\n\n[SYSTEM NOTE: The user is messaging via SMS. Your response MUST be extremely short, maximum 1 or 2 sentences, under 100 characters. No markdown, no long lists.]"
             
             graph_response = ktech_bot_graph.invoke({
