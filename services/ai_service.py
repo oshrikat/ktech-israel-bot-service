@@ -81,7 +81,7 @@ def generate_ai_response(conversation_history: list, customer_phone: str = None)
             dynamic_instruction += f"\n\n[הערת מערכת נסתרת: מספר הטלפון של הלקוח בשיחה זו הוא {customer_phone}.]"
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-3.5-flash-lite",
             contents=formatted_contents,
             config=types.GenerateContentConfig(
                 system_instruction=dynamic_instruction, # משתמשים בהוראה הדינמית שיצרנו
