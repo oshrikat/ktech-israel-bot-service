@@ -148,4 +148,3 @@ async def receive_sms(request: Request, background_tasks: BackgroundTasks):
     background_tasks.add_task(sms_manager.process_incoming_sms, sender, content)
     
     return {"status": "ok"}
-

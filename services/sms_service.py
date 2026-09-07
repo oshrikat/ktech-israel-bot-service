@@ -69,6 +69,8 @@ class SmsService:
             print(f"❌ Error communicating with Phone API: {e}")
 
 
+
+
     # פונקציה שאחראית לטפל בהודעת נכנסות
     async def process_incoming_sms(self, sender_phone: str, message_body: str):
         """פונקציה זו רצה ברקע דרך BackgroundTasks, נועלת, בודקת טקסט, ומפעילה AI"""
@@ -81,7 +83,7 @@ class SmsService:
             
             # אם אותו טקסט מאותו מספר הגיע שוב ב-120 השניות האחרונות -> זה Retry!
             if last_processed and last_processed['msg'] == clean_msg:
-                if current_time - last_processed['time'] < 120:
+                if current_time - last_processed['time'] < 600:
                     print(f"♻️ DUPLICATE BLOCKED: Ignoring repeated SMS from {sender_phone}")
                     return # מסיים את המשימה ברקע בשקט בלי להעיר את ה-AI
                     
