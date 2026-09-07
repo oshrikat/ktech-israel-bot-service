@@ -145,7 +145,7 @@ async def receive_sms(request: Request, background_tasks: BackgroundTasks):
     print(f"✅ SECURE SMS RECEIVED from {sender}: {content}")
     
     # 2. שולחים את עבודת ה-AI לרקע, ומשחררים את טלפון קייטק מיד!
-    background_tasks.add_task(sms_manager.process_incoming_sms, sender, content)
+    background_tasks.add_task(sms_manager.process_incoming_sms, sender, content,timestamp)
     
     return {"status": "ok"}
 

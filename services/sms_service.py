@@ -93,27 +93,22 @@ class SmsService:
 
 
     # פונקציה שאחראית לטפל בהודעת נכנסות
-    async def process_incoming_sms(self, sender_phone: str, message_body: str):
+    async def process_incoming_sms(self, sender_phone: str, message_body: str, msg_timestamp: str):
         """הפונקציה מקבלת את הבקשה, נועלת, מסננת כפילויות ומשחררת מיד"""
         clean_msg = message_body.split('SIM1_')[0].strip()
-        current_time = time.time()
 
-        # 2. השומר בכניסה - נעילה אטומית! רק בקשה אחת נכנסת לבדוק בכל רגע נתון
+        # השומר בכניסה - נעילה אטומית! רק בקשה אחת נכנסת לבדוק בכל רגע נתון
         async with self.lock:
-            last_processed = self.processed_messages.get(sender_phone)
-            
-            if last_processed and last_processed['msg'] == clean_msg: # אם יוצא שזו הודעה כפולה
-                if current_time - last_processed['time'] < 120: # נבדוק את הפרש הזמנים
-                    print(f"♻️ DUPLICATE BLOCKED: Ignoring repeated SMS from {sender_phone}")
+            # בודקים אם תעודת הזהות של ההודעה כבר מוכרת לנו
+            if msg_timestamp in self.processed_messages:
+                print(f"♻️ DUPLICATE BLOCKED: Exact SMS ID already processed.")
+                return {"status": "ok"}
+                
+            # אם זו הודעה חדשה, נשמור את תעודת הזהות שלה לתמיד
+            self.processed_messages[msg_timestamp] = True
 
-                    # 3. חוסם ומחזיר OK לאפליקציה מיד
-                    return {"status": "ok", "message": "duplicate ignored"}
-                    
-            # 4. רושם את ההודעה בזיכרון *לפני* שהיא נשלחת ל-AI
-            self.processed_messages[sender_phone] = {"msg": clean_msg, "time": current_time}
-
-        # 5. רק אחרי שווידאנו שזו לא כפילות, זורקים לרקע
-        asyncio.create_task(self._process_logic_in_background(sender_phone, clean_msg)) # נקפוץ לביצוע הפונקציה שכתובה למעלה
+        # רק אחרי שווידאנו שזו לא כפילות, זורקים לרקע
+        asyncio.create_task(self._process_logic_in_background(sender_phone, clean_msg)) 
         return {"status": "success", "code": 200}
 
 sms_manager = SmsService()

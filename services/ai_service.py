@@ -106,7 +106,7 @@ def summarize_conversation(messages_to_summarize: list) -> str:
         prompt = f"סכם את 10 ההודעות הבאות לפי ההנחיות:\n\n{text_dialogue}"
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-3.1-flash-lite",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SUMMARY_INSTRUCTION,
