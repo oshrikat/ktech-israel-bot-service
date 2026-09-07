@@ -69,11 +69,27 @@ class SmsService:
             print(f"❌ Error communicating with Phone API: {e}")
 
 
-    # לוקחת את המשימה לעבוד ברקע ומתעסקת עם המודל בינה מלאכותית
-    async def _process_logic_in_background(self, sender_phone: str, clean_msg: str):
-        """פונקציה זו רצה ברקע ומתעסקת רק ב-AI, נטו."""
+    # פונקציה שאחראית לטפל בהודעת נכנסות
+    async def process_incoming_sms(self, sender_phone: str, message_body: str):
+        """פונקציה זו רצה ברקע דרך BackgroundTasks, נועלת, בודקת טקסט, ומפעילה AI"""
+        clean_msg = message_body.split('SIM1_')[0].strip()
+        current_time = time.time()
+
+        # 1. נעילה אטומית לבדיקת כפילויות של הטקסט
+        async with self.lock:
+            last_processed = self.processed_messages.get(sender_phone)
+            
+            # אם אותו טקסט מאותו מספר הגיע שוב ב-120 השניות האחרונות -> זה Retry!
+            if last_processed and last_processed['msg'] == clean_msg:
+                if current_time - last_processed['time'] < 120:
+                    print(f"♻️ DUPLICATE BLOCKED: Ignoring repeated SMS from {sender_phone}")
+                    return # מסיים את המשימה ברקע בשקט בלי להעיר את ה-AI
+                    
+            # רושמים את ההודעה בזיכרון *לפני* שה-AI מתחיל לעבוד
+            self.processed_messages[sender_phone] = {"msg": clean_msg, "time": current_time}
+
+        # 2. הרצת ה-AI מחוץ למנעול כדי לא לתקוע בקשות מלקוחות אחרים
         print(f"🧠 Routing SMS from {sender_phone} to AI Graph...")
-        
         try:
             config = {"configurable": {"thread_id": f"sms_{sender_phone}"}}
             ai_input = f"{clean_msg}\n\n[SYSTEM NOTE: The user is messaging via SMS. Your response MUST be extremely short, maximum 1 or 2 sentences, under 100 characters. No markdown, no long lists.]"
@@ -90,25 +106,5 @@ class SmsService:
             await self.send_sms_reply(sender_phone, bot_reply)
         except Exception as e:
             print(f"❌ Error processing AI logic for SMS: {e}")
-
-
-    # פונקציה שאחראית לטפל בהודעת נכנסות
-    async def process_incoming_sms(self, sender_phone: str, message_body: str, msg_timestamp: str):
-        """הפונקציה מקבלת את הבקשה, נועלת, מסננת כפילויות ומשחררת מיד"""
-        clean_msg = message_body.split('SIM1_')[0].strip()
-
-        # השומר בכניסה - נעילה אטומית! רק בקשה אחת נכנסת לבדוק בכל רגע נתון
-        async with self.lock:
-            # בודקים אם תעודת הזהות של ההודעה כבר מוכרת לנו
-            if msg_timestamp in self.processed_messages:
-                print(f"♻️ DUPLICATE BLOCKED: Exact SMS ID already processed.")
-                return {"status": "ok"}
-                
-            # אם זו הודעה חדשה, נשמור את תעודת הזהות שלה לתמיד
-            self.processed_messages[msg_timestamp] = True
-
-        # רק אחרי שווידאנו שזו לא כפילות, זורקים לרקע
-        asyncio.create_task(self._process_logic_in_background(sender_phone, clean_msg)) 
-        return {"status": "success", "code": 200}
 
 sms_manager = SmsService()
