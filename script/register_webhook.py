@@ -2,7 +2,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # 1. הזן את הנתונים המדויקים שהופיעו לך במסך הבית של הטלפון:
-PHONE_LOCAL_URL = "http://10.0.0.8:8080/api/v1/webhooks"
+PHONE_LOCAL_URL = "http://10.0.0.20:5000/api/v1/webhooks"
 USERNAME = "K-Tech bot"
 PASSWORD = "ktech123"
 

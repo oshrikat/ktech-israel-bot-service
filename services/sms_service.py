@@ -65,8 +65,9 @@ class SmsService:
                     print(f"✅ Outbound SMS sent successfully to {local_phone}")
                 else:
                     print(f"❌ Failed to send SMS: {response.status_code}")
+                    
         except Exception as e:
-            print(f"❌ Error communicating with Phone API: {e}")
+            print(f"❌ Error communicating with Phone API: {type(e).__name__} | {str(e)}")
 
 
 
