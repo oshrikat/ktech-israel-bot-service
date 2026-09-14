@@ -12,7 +12,7 @@ from dtos.sms_dto import OutboundSmsDTO
 class SmsService:
     def __init__(self):
         self.secret = "ktech_secret_2026"
-        self.phone_api_url = "http://100.86.10.117:5000/sms/send"
+        self.phone_api_url = "http://100.71.143.75:5000/sms/send"
         self.processed_messages = {}
         self.lock = asyncio.Lock() 
 
