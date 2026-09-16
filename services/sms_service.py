@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import base64
+import os
 import urllib.parse
 import time
 import httpx
@@ -11,10 +12,10 @@ from dtos.sms_dto import OutboundSmsDTO
 # מחלקה שמאוחלת ויוצרת את המשתנים שהיא צריכה כדי לעבוד כמו הסוד וכו' - נתונים שהיא צריכה לזכור בעת ריצה
 class SmsService:
     def __init__(self):
-        self.secret = "ktech_secret_2026"
-        self.phone_api_url = "http://100.71.143.75:5000/sms/send"
+        self.secret = os.getenv("SMS_SECRET", "ktech_secret_2026")
+        self.phone_api_url = os.getenv("PHONE_API_URL", "http://100.71.143.75:5000/sms/send")
         self.processed_messages = {}
-        self.lock = asyncio.Lock() 
+        self.lock = asyncio.Lock()
 
     # פונקציה שבודקת את החתימה ומוודאית שזה לא מתחזה - שזה לקוח אמיתי ולא אדם באמצע חס ושלום
     def verify_signature(self, timestamp: str, signature: str) -> bool:
