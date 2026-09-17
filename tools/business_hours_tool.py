@@ -6,6 +6,9 @@ def check_business_hours() -> str:
     בודק את התאריך והשעה הנוכחיים בישראל ומחזיר סטטוס פתיחה של המעבדה.
     מיועד לשימוש על ידי מודל ה-AI כדי לענות ללקוחות על שעות פעילות בזמן אמת.
     """
+
+    print("🛠️ TOOL TRIGGERED: Checking business hours...")
+    
     # הגדרת אזור הזמן של ישראל - קריטי כדי למנוע טעויות אם השרת יושב בחו"ל
     israel_tz = pytz.timezone('Asia/Jerusalem')
     now = datetime.now(israel_tz)
